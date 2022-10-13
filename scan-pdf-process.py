@@ -4,7 +4,7 @@ import numpy as np
 import imutils
 from utils import *
 # read input image
-imageFrame = cv2.imread('output/output_0.jpg')
+imageFrame = cv2.imread('output/output_2.jpg')
 height, width, channels = imageFrame.shape
 # imageFrame = imageFrame[1949:5848, 0:4139]
 img_grey = cv2.cvtColor(imageFrame, cv2.COLOR_BGR2GRAY)
@@ -52,9 +52,6 @@ block_count = 5
 answer_count_each_row = 5
 padding_vertical = 28
 
-right_anser = {0: 1, 1: 4, 2: 0, 3: 3, 4: 1, 5: 1, 6: 0, 7: 4,8 :2,9:2,10: 1, 11: 4, 12: 0, 13: 3, 14: 1, 15: 1, 16: 0, 17: 4,18 :2,19:2,
-20: 1, 21: 4, 22: 0, 23: 3, 24: 1, 25: 1, 26: 0, 27: 4,28 :2,29:2,30: 1, 31: 4, 32: 0, 33: 3, 34: 1, 35: 1, 36: 0, 37: 4,38 :2,39:2,
-40: 1, 41: 4, 42: 0, 43: 3, 44: 1, 45: 1, 46: 0, 47: 4,48 :2,49:2,}
 
 for ans_block in sorted_ans_blocks:
     print("ans_block")
@@ -70,14 +67,24 @@ for ans_block in sorted_ans_blocks:
         # box_img = box_img[14:height_box - 14, 200:]
         offset2 = ceil(box_img.shape[0] / 5)
         # loop over each line in a box
-        box_gray_img =  cv2.cvtColor(box_img, cv2.COLOR_BGR2GRAY)
+        box_gray_img = cv2.cvtColor(box_img, cv2.COLOR_BGR2GRAY)
         box_blurred = cv2.GaussianBlur(box_gray_img, (5, 5), 0)
-        box_canny = cv2.Canny(box_blurred, 50, 170)
-        box_cnts = cv2.findContours(box_canny, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        box_canny = cv2.Canny(box_blurred, 100, 200)
+        box_cnts = cv2.findContours(
+            box_canny.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        _, box_threshold = cv2.threshold(box_gray_img, 170, 255, cv2.THRESH_BINARY_INV)
+        box_check_cnts = cv2.findContours(
+            box_threshold.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+        # box_cnts = box_cnts + box_check_cnts
         box_cnts = imutils.grab_contours(box_cnts)
-        print("box_cnts",len(box_cnts))
-        cv2.imwrite("./exports/output_box_img_i_{i}_x_{x}_y_{y}.jpg".format(
-                i=i, x=i * offset1, y=(i + 1) * offset1), box_canny)
+        box_check_cnts = imutils.grab_contours(box_check_cnts)
+        box_cnts = box_cnts + box_check_cnts
+        # print("box_cnts", len(box_cnts))
+        cv2.imwrite("./exports/output_box_canny_i_{i}_x_{x}_y_{y}.jpg".format(
+            i=i, x=i * offset1, y=(i + 1) * offset1), box_canny)
+        cv2.imwrite("./exports/output_box_threshold_i_{i}_x_{x}_y_{y}.jpg".format(
+            i=i, x=i * offset1, y=(i + 1) * offset1), box_threshold)
+        # print("box_cnts", len(box_cnts))
         # for j in range(5):
         #     cv2.imwrite("./exports/output_row_img_i_{i}_j_{j}_x_{x}_y_{y}.jpg".format(
         #         i=i,j=j, x=i * offset1, y=(i + 1) * offset1), box_img[j * offset2:(j + 1) * offset2, :])
@@ -86,14 +93,57 @@ for ans_block in sorted_ans_blocks:
         # loop over the contours
         x_old, y_old, w_old, h_old = 0, 0, 0, 0
         list_choices = []
-        sorted_box_cnts = sorted(box_cnts, key=sort_by_x)
-        for box_cnt in sorted_box_cnts:
+        list_choices_each_row = []
+        box_cnts = sorted(box_cnts, key=sort_by_y)
+        box_cnts_group = []
+        box_cnts_each_group = []
+        y_start = 0
+        box_canny_draw_cnt = box_img.copy()
+        print("box_cnts",len(box_cnts))
+        for box_cnt in box_cnts:
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(box_cnt)
             ar = w_curr / float(h_curr)
-            if w_curr >= 50 and h_curr >= 50 and w_curr * h_curr >= 365 and w_curr < 100 and h_curr < 100 and 0.8 <= ar <= 1.2:
-                print("x_curr", x_curr,"x_old" ,x_old,"y_curr", y_curr,"y_old" ,y_old,"x_curr - x_old", x_curr - x_old, "y_curr- y_old" , y_curr- y_old)
-               
-                if abs(x_curr - x_old) > 200 or abs(y_curr - y_old) > 200:
+            # cv2.imwrite("./exports/output_answer_img_{i}_y_{y}_x_{x}.jpg".format(
+            #             i=i, x=x_curr, y=y_curr), box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr])
+            # print("x_curr", x_curr, "y_curr", y_curr,"w_curr", w_curr, "h_curr", h_curr,)
+            # print(w_curr >= 10, h_curr >= 10,  w_curr * h_curr >= 365, w_curr < 100, h_curr < 100,0.8 <= ar <= 1.2)
+            if w_curr * h_curr > 3500 and 0.8 <= ar <= 1.2:
+                # cv2.imwrite("./exports/output_answer_img_{i}_y_{y}_x_{x}.jpg".format(
+                #         i=i, x=x_curr, y=y_curr), box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr])
+                # print("x_curr", x_curr, "y_curr", y_curr,"w_curr", w_curr, "h_curr", h_curr, "y_start", y_start)
+                
+                if len(box_cnts_each_group) < 4 or y_curr - y_start < 80:
+                    box_cnts_each_group.append(box_cnt)
+                    if y_start == 0:
+                        y_start = y_curr
+                        x_old = x_curr
+                    # print("x_curr", x_curr, "y_curr", y_curr,)
+                else:
+                    box_cnts_group.append(
+                        sorted(box_cnts_each_group, key=sort_by_x))
+                    box_cnts_each_group = [box_cnt]
+                    y_start = 0
+                    x_old = 0
+                    # print("--------------------------------")
+                    # print("x_curr", x_curr, "y_curr", y_curr,)
+        if len(box_cnts_each_group) > 0:
+            box_cnts_group.append(sorted(box_cnts_each_group, key=sort_by_x))
+            box_cnts_each_group = []
+            y_start = 0
+            x_old = 0
+            # print("--------------------------------")
+
+        # cv2.imwrite("./exports/output_box_draw_contour_img_i_{i}_x_{x}_y_{y}.jpg".format(
+        #     i=i, x=i * offset1, y=(i + 1) * offset1), box_canny_draw_cnt)
+        # sorted_box_cnts = []
+        for box_cnt_each_group in box_cnts_group:
+            each_answers = []
+            # print("box_cnt_each_group", len(box_cnt_each_group),)
+            for box_cnt in box_cnt_each_group:
+                x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(box_cnt)
+                # print("x_curr", x_curr, "y_curr", y_curr,)
+                if abs(x_curr - x_old) > 200:
+                    each_answers.append((box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
                     list_choices.append(
                         (box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
                     # update coordinates (x, y) and (height, width) of added contours
@@ -101,10 +151,41 @@ for ans_block in sorted_ans_blocks:
                     y_old = y_curr
                     w_old = w_curr
                     h_old = h_curr
-
-                    bubble_choice = cv2.threshold(box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
-                    bubble_choice = cv2.resize(bubble_choice, (28, 28), cv2.INTER_AREA)
+                    bubble_choice = cv2.threshold(
+                        box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+                    bubble_choice = cv2.resize(
+                        bubble_choice, (28, 28), cv2.INTER_AREA)
                     bubble_choice = bubble_choice.reshape((28, 28, 1))
-                        # cv2.imwrite("./exports/output_answer_img_{i}_{len}_x_{x}_y_{y}.jpg".format(
-                        #  i=i,len=len(list_choices),x=x_curr, y=y_curr), bubble_choice)
-        print("list_choices",len(list_choices))
+                    cv2.drawContours(box_img, box_cnt, -1, (0,255,0), 3)
+                
+                    # cv2.imwrite("./exports/output_answer_img_{i}_{len}_y_{y}_x_{x}.jpg".format(
+                    # i=i, len=len(list_choices), x=x_curr, y=y_curr), bubble_choice)
+            # print("each_answers len" , len(each_answers),"\n---------------------------------\n")
+        # for box_cnt in sorted_box_cnts:
+        #     x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(box_cnt)
+
+        #     print("x_curr", x_curr, "y_curr", y_curr,)
+
+        #     if (len(list_choices_each_row) < 4 and abs(x_curr - x_old) > 150 and x_curr > x_old) or (len(list_choices_each_row) == 0 and abs(y_curr - y_old) > 70):
+        #             list_choices_each_row.append((box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
+        #             list_choices.append(
+        #                 (box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
+        #             # update coordinates (x, y) and (height, width) of added contours
+        #             x_old = x_curr
+        #             y_old = y_curr
+        #             w_old = w_curr
+        #             h_old = h_curr
+
+        #             bubble_choice = cv2.threshold(
+        #                 box_gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+        #             bubble_choice = cv2.resize(
+        #                 bubble_choice, (28, 28), cv2.INTER_AREA)
+        #             bubble_choice = bubble_choice.reshape((28, 28, 1))
+        #             # if len(box_cnts) == 154:
+        #             cv2.imwrite("./exports/output_answer_img_{i}_{len}_x_{x}_y_{y}.jpg".format(
+        #              i=i,len=len(list_choices),x=x_curr, y=y_curr), bubble_choice)
+        #     if (len(list_choices_each_row) >= 4):
+        #             list_choices_each_row = []
+        cv2.imwrite("./exports/output_box_img_i_{i}_x_{x}_y_{y}.jpg".format(
+            i=i, x=i * offset1, y=(i + 1) * offset1), box_img)
+        print("list_choices --------", len(list_choices))

@@ -118,3 +118,11 @@ def get_x_ver1(s):
 def sort_by_x(s):
     s = cv2.boundingRect(s)
     return s[0]
+
+def sort_by_y(s):
+    s = cv2.boundingRect(s)
+    return s[1]
+
+def sort_by_y_x(s):
+    s = cv2.boundingRect(s)
+    return [s[1], s[0]]
