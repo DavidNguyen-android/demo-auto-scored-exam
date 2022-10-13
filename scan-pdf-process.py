@@ -4,7 +4,7 @@ import numpy as np
 import imutils
 from utils import *
 # read input image
-imageFrame = cv2.imread('output/output_2.jpg')
+imageFrame = cv2.imread('output/output_1.jpg')
 height, width, channels = imageFrame.shape
 # imageFrame = imageFrame[1949:5848, 0:4139]
 img_grey = cv2.cvtColor(imageFrame, cv2.COLOR_BGR2GRAY)
@@ -60,6 +60,7 @@ for ans_block in sorted_ans_blocks:
     # Loop over each box in answer block
     for i in range(block_count):
         print("block_count", i)
+        if i != 4: continue
 
         box_img = np.array(ans_block_img[i * offset1:(i + 1) * offset1, :])
         height_box = box_img.shape[0]
@@ -189,3 +190,4 @@ for ans_block in sorted_ans_blocks:
         cv2.imwrite("./exports/output_box_img_i_{i}_x_{x}_y_{y}.jpg".format(
             i=i, x=i * offset1, y=(i + 1) * offset1), box_img)
         print("list_choices --------", len(list_choices))
+        exit()
