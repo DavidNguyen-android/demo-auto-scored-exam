@@ -11,27 +11,42 @@ import datetime
 
 def getAnswerFromImage(imageFrame):
     height, width, channels = imageFrame.shape
-    
-    cnts = findAnswerContainerWithDrawLines(imageFrame) + findAnswerContainer(imageFrame)
-    # cnts = cnts
-    ans_blocks = []
-    if len(cnts) > 0:
+    answer_start_y = 2200
+    answer_start_left_x = 0
+    answer_start_right_x = int(width / 2)
+    imageCroppedLeft = imageFrame[answer_start_y:height,
+                                  answer_start_left_x:answer_start_right_x]
+    cntsLeft = findAnswerContainerWithDrawLines(
+        imageCroppedLeft,"imageCroppedLeft") + findAnswerContainer(imageCroppedLeft)
+    imageCroppedRight = imageFrame[answer_start_y:height,
+                                   answer_start_right_x:width]
+    cntsRight = findAnswerContainerWithDrawLines(
+        imageCroppedRight,"imageCroppedRight") + findAnswerContainer(imageCroppedRight)
+    ans_blocks_left = []
+    if len(cntsLeft) > 0:
         x_old, y_old, w_old, h_old = 0, 0, 0, 0
         # sort the contours according to their size in descending order
-        cnts = sorted(cnts, key=get_x_ver1)
+        cntsLeft = sorted(cntsLeft, key=get_x_ver1)
 
-        for i, c in enumerate(cnts):
+        for i, c in enumerate(cntsLeft):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
-
+            x_curr = x_curr + answer_start_left_x
+            y_curr = y_curr + answer_start_y
             # check overlap contours
             check_xy_min = x_curr * y_curr - x_old * y_old
             check_xy_max = (x_curr + w_curr) * (y_curr + h_curr) - \
                 (x_old + w_old) * (y_old + h_old)
 
-            if w_curr > 1100 and h_curr > 2900 and w_curr * h_curr > 3000000 and w_curr * h_curr < height * width / 2 and w_curr < h_curr:
+            if x_curr < x_old + w_old:
+                continue
+            min_w_curr = 1100
+            max_w_curr = 1200
+            min_h_curr = 2900
+            max_h_curr = 3000
+            if w_curr > min_w_curr and h_curr > min_h_curr and w_curr < max_w_curr and h_curr < max_h_curr:
                 # if list answer box is empty
-                if len(ans_blocks) == 0 or (check_xy_min > 20000 and check_xy_max > 20000):
-                    ans_blocks.append(
+                if len(ans_blocks_left) == 0 or (check_xy_min > 20000 and check_xy_max > 20000):
+                    ans_blocks_left.append(
                         (imageFrame[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
                     # update coordinates (x, y) and (height, width) of added contours
                     x_old = x_curr
@@ -43,12 +58,49 @@ def getAnswerFromImage(imageFrame):
                     fileName = "./exports/output_i_{i}w_curr{w_curr}_h_curr{h_curr}.jpg".format(
                         i=i, w_curr=w_curr, h_curr=h_curr)
                     cv2.imwrite(fileName, img_contour)
-    sorted_ans_blocks = sorted(ans_blocks, key=get_x)
+
+    ans_blocks_right = []
+    if len(cntsRight) > 0:
+        x_old, y_old, w_old, h_old = 0, 0, 0, 0
+        # sort the contours according to their size in descending order
+        cntsRight = sorted(cntsRight, key=get_x_ver1)
+
+        for i, c in enumerate(cntsRight):
+            x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
+            x_curr = x_curr + answer_start_right_x
+            y_curr = y_curr + answer_start_y
+            # check overlap contours
+            check_xy_min = x_curr * y_curr - x_old * y_old
+            check_xy_max = (x_curr + w_curr) * (y_curr + h_curr) - \
+                (x_old + w_old) * (y_old + h_old)
+
+            if x_curr < x_old + w_old:
+                continue
+            min_w_curr = 1100
+            max_w_curr = 1200
+            min_h_curr = 2900
+            max_h_curr = 3000
+            if w_curr > min_w_curr and w_curr < max_w_curr and h_curr > min_h_curr and h_curr < max_h_curr:
+                # if list answer box is empty
+                if len(ans_blocks_right) == 0 or (check_xy_min > 20000 and check_xy_max > 20000):
+                    ans_blocks_right.append(
+                        (imageFrame[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
+                    # update coordinates (x, y) and (height, width) of added contours
+                    x_old = x_curr
+                    y_old = y_curr
+                    w_old = w_curr
+                    h_old = h_curr
+                    img_contour = imageFrame[y_curr:y_curr +
+                                             h_curr, x_curr:x_curr + w_curr]
+                    fileName = "./exports/output_i_{i}w_curr{w_curr}_h_curr{h_curr}.jpg".format(
+                        i=i, w_curr=w_curr, h_curr=h_curr)
+                    cv2.imwrite(fileName, img_contour)
+
+    sorted_ans_blocks = sorted(ans_blocks_left + ans_blocks_right, key=get_x)
     # process_ans_blocks
     block_count = 5
 
     print("sorted_ans_blocks", len(sorted_ans_blocks))
-    return
     for ans_block in sorted_ans_blocks:
         ans_block_img = np.array(ans_block[0])
         offset1 = ceil(ans_block_img.shape[0] / block_count)
@@ -168,7 +220,7 @@ def getAnswerFromImage(imageFrame):
                         bubble_choice = cv2.resize(
                             bubble_choice, (28, 28), cv2.INTER_AREA)
                         bubble_choice = bubble_choice.reshape((28, 28, 1))
-                        cv2.drawContours(box_img, box_cnt, -1, (0,255,0), 3)
+                        cv2.drawContours(box_img, box_cnt, -1, (0, 255, 0), 3)
 
                         # cv2.imwrite("./exports/output_answer_img_{i}_{len}_y_{y}_x_{x}.jpg".format(
                         # i=i, len=len(list_choices), x=x_curr, y=y_curr), bubble_choice)
@@ -205,13 +257,14 @@ def getAnswerFromImage(imageFrame):
             else:
                 print("list_choices --------------", len(list_choices))
 
-def findAnswerContainerWithDrawLines(imageFrame):
+
+def findAnswerContainerWithDrawLines(imageFrame, name):
     # Convert image to grayscale
     image = imageFrame.copy()
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Use canny edge detection
-    edges = cv2.Canny(gray, 0, 150, apertureSize=3)
+    edges = cv2.Canny(gray, 0, 200, apertureSize=3)
 
     # Apply HoughLinesP method to
     # to directly obtain line end points
@@ -236,10 +289,11 @@ def findAnswerContainerWithDrawLines(imageFrame):
         lines_list.append([(x1, y1), (x2, y2)])
 
     # Save the result image
-    cv2.imwrite('./exports/detectedLines.png',image)
+    cv2.imwrite('./exports/{name}_detectedLines.png'.format(name = name), image)
     imageFrameDrawLine = image.copy()
     cnts = findAnswerContainer(imageFrameDrawLine)
     return cnts
+
 
 def findAnswerContainer(imageFrame):
     img_grey = cv2.cvtColor(imageFrame, cv2.COLOR_BGR2GRAY)
@@ -260,7 +314,7 @@ def findAnswerContainer(imageFrame):
                              cv2.CHAIN_APPROX_NONE)
     _, img_thresh_2 = cv2.threshold(
         img_canny_2, 45, 255, cv2.THRESH_BINARY_INV)
-        
+
     img_thresh_2 = cv2.erode(img_thresh_2, None, iterations=2)
     img_thresh_2 = cv2.dilate(img_thresh_2, None, iterations=2)
     # cv2.imwrite("./exports/img_canny_2.jpg", img_canny_2)
@@ -304,8 +358,10 @@ def findAnswerContainer(imageFrame):
     cnts8 = imutils.grab_contours(cnts8)
     cnts9 = imutils.grab_contours(cnts9)
     cnts10 = imutils.grab_contours(cnts10)
-    cnts = cnts + cnts2 + cnts3 + cnts4 + cnts5 + cnts6 + cnts7 + cnts8 + cnts9 + cnts10
+    cnts = cnts + cnts2 + cnts3 + cnts4 + cnts5 + \
+        cnts6 + cnts7 + cnts8 + cnts9 + cnts10
     return cnts
+
 
 if __name__ == '__main__':
     os.chdir("./output")
@@ -319,5 +375,8 @@ if __name__ == '__main__':
         print("end------------------", file,
               datetime.datetime.now(), '------------------",')
     print("end------------------", datetime.datetime.now(), '------------------",')
+    # print("start------------------",
+    #       datetime.datetime.now(), '------------------",')
     # imageFrame = cv2.imread('output/output_11.jpg')
     # getAnswerFromImage(imageFrame)
+    # print("end------------------", datetime.datetime.now(), '------------------",')
